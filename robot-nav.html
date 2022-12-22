@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>WSDK Robot</title>
+		<meta charset=utf-8 />
+		<meta name="viewport" content="width=device-width,initial-scale=1.0">
+		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
+		<meta name="keywords" content="three.js,3d,panoramic,vision">
+		<meta name="description" content="three.js,3d,panoramic,vision">
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+		<meta name="theme-color" content="#FFFC00">
+		<link rel="shortcut icon" href="./images/emoji_0.png">
+		<link rel="apple-touch-icon" href="./images/emoji_0.png" />
+		<link rel="apple-touch-icon-precomposed" href="./images/emoji_0.png">
+		<link rel="Bookmark" href="./images/emoji_0.png" />
+		
+		<link type="text/css" rel="stylesheet" href="./css/bootstrap.min.css">
+		<link type="text/css" rel="stylesheet" href="./css/main-20220407000.css">
+		<style>
+			#initloader {
+				border: 5px solid #f3f3f3; /* Light grey */
+				border-top: 5px solid #3d3d3d; /* Grey */
+				border-radius: 50%;
+				width: 40px;
+				height: 40px;
+				animation: spin 1s linear infinite;
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				z-index: 2;
+			}
+
+			@keyframes spin {
+				0% { transform: rotate(0deg); }
+				100% { transform: rotate(360deg); }
+			}
+
+			/*弹框验证码*/
+			.ipt-fake-box {
+				text-align: center;
+			}
+			.input {
+				display: inline-block;
+			}
+			.input:last-child {
+				border-right: 1px solid #999;
+			}
+			input.my_input {
+				border-top: 1px solid #999;
+				border-bottom: 1px solid #999;
+				border-left: 1px solid #999;
+				width: 45px;
+				height: 45px;
+				outline: none;
+				font-family: inherit;
+				font-size: 28px;
+				font-weight: inherit;
+				text-align: center;
+				line-height: 45px;
+				color: #c2c2c2;
+				background: rgba(255, 255, 255, 0);
+			}
+
+			.show-tip-box {
+				position: fixed;
+				width: 100%;
+				height: 100%;
+				top: 0;
+				right: 0;
+				bottom: 0;
+				left: 0;
+				z-index: 99;
+				display: none;
+			}
+			.show-tip {
+				width: 320px;
+				height: 248px;
+				background: url("images/invite-tip.png") center center no-repeat;
+				background-size: cover;
+				position: absolute;
+				right: 0;
+				top: 0;
+			}
+		</style>
+	</head>
+	<body>
+		<script type="text/javascript" src="./js/jquery-3.6.0.min.js"></script>
+		<script type="text/javascript" src="./js/bootstrap.min.js"></script>
+		<script src="./js/es-module-shims.js"></script>
+		<script src="./js/joy-20220325000.js"></script>
+		<script src="./js/three.js"></script>
+		<script src="./js/examples/js/controls/OrbitControls.js"></script>
+		<script src="./js/resourcemgr.js" type="text/javascript"></script>
+		<script src="./js/mousekeyboard.js" type="text/javascript"></script>
+		<script src="./js/reconnecting-websocket.js"></script>
+		<script src="./js/examples/js/libs/stats.min.js"></script>
+		<script src="./js/examples/js/loaders/GLTFLoader.js"></script>
+		<script src="./js/examples/js/math/Capsule.js"></script>
+		<script src="./js/examples/js/math/Octree.js"></script>
+		<script src="./js/examples/js/utils/SkeletonUtils.js"></script>
+		<script src="./js/robotcar3d.js"></script>
+		<script src="./js/space.js"></script>
+		<script src="./js/wsclient-20221209000.js"></script>
+
+		<script type="text/javascript" src="./js/eventemitter2.min.js"></script>
+		<script type="text/javascript" src="./js/roslib.js"></script>
+		<script type="text/javascript" src="./js/visualization/SceneNode.js"></script>
+		<script type="text/javascript" src="./js/navigation/Path.js"></script>
+		<script type="text/javascript" src="./js/navigation/OccupancyGrid.js"></script>
+		<script type="text/javascript" src="./js/navigation/OccupancyGridClient.js"></script>
+		<script type="text/javascript" src="./js/sensors/Points.js"></script>
+		<script type="text/javascript" src="./js/sensors/LaserScan.js"></script>
+
+		<div id="overlay" style="display: none">
+			<button id="startButton">Click to control WSDK Robot Car!</button>
+		</div>
+
+		<div id="initloader" style="display: none"></div>
+		<div id="container">
+			<img id="image_robot_camera" style="display: none"/>
+			<canvas id='robot_car_camera_canvas' width='640px' height='480px' style="display: none"></canvas>
+		</div>
+
+		<div class="show-tip-box"><div class="show-tip"></div></div>
+
+		<div class="modal fade" id="input6dsDialog" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content">
+					<div class="modal-header settingHeader">
+						<h4 class="modal-title" id="myModalLabel">Please input password</h4>
+						<button type="button" class="close" data-dismiss="modal" aria-hidden="true"> ×</button>
+					</div>
+					<div class="modal-body settingBody">
+						<div class="ipt-box-nick mb15-nick">
+							<div class="ipts-box-nick">
+								<div class="ipt-fake-box">
+									<input type="tel" class="my_input" id="firstInput" maxlength="1">
+									<input type="tel" class="my_input" maxlength="1" id="firstInput1">
+									<input type="tel" class="my_input" maxlength="1" id="firstInput2">
+									<input type="tel" class="my_input" maxlength="1" id="firstInput3">
+									<input type="tel" class="my_input" maxlength="1" id="firstInput4">
+									<input type="tel" class="my_input" maxlength="1" id="firstInput5">
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+			
+		<div id="tips_info" style="display: none">
+			<div class="tipsmask">
+				<div class="tipsmodal">
+					<p id="gametipsinfo">这里是用来显示提示信息的地方...</p>
+					<div id="BackToMain"><button>返回主菜单</button></div>
+				</div>
+			</div>
+		</div>
+
+		<div id="tips_main" style="display: none">
+			<div class="tipsmask">
+				<div class="tipsmodal">
+					<p>This webpage is <b>「Control panel of WSDK robot car」</b>️‍. Welcome!</p>
+					<button id="JoinRoom">Enter Panel</button>
+				</div>
+			</div>
+		</div>
+
+		<div id="joyDiv1" style="width:180px;height:180px;margin:0px;position:fixed;bottom:20px;left:20px;"></div>
+		<div id="joyDivL" style="width:50px;height:50px;margin:0px;position:fixed;bottom:20px;right:100px;"></div>
+		<div id="joyDivR" style="width:50px;height:50px;margin:0px;position:fixed;bottom:20px;right:20px;"></div>
+
+		<script>
+			getUrlParamValue = function (name) {
+				if (name == null || name == 'undefined') {return null; }
+				var searchStr = decodeURI(location.search);
+				var infoIndex = searchStr.indexOf(name + "=");
+				if (infoIndex == -1) { return null; }
+				var searchInfo = searchStr.substring(infoIndex + name.length + 1);
+				var tagIndex = searchInfo.indexOf("&");
+				if (tagIndex != -1) { searchInfo = searchInfo.substring(0, tagIndex); }
+				return searchInfo;
+			}
+
+			let isInWeChat = false;
+			window.onload = function() {
+				var ua = window.navigator.userAgent.toLowerCase();
+				if (ua.includes("micromessenger")) {
+					//document.querySelector(".show-tip-box").style.display = "block";
+					// isInWeChat = true;
+					//document.getElementById('tips_main').style.display = 'none';
+				}
+				else {
+					var ua = window.navigator.userAgent.toLowerCase();
+					var isiPhone = ua.indexOf('iphone') > -1;
+					var isAndroid = ua.indexOf('android') > -1;
+					var isPAD = ua.indexOf('ipad') > -1;
+
+					if (isiPhone) {
+						//
+					} else if (isAndroid) {
+						//
+					} else if (isPAD) {
+						//
+					} else {
+						// PC
+					}
+				}
+			};
+			
+			const copyText = (text) => {
+				// 数字没有 .length 不能执行selectText 需要转化成字符串
+				const textString = text.toString();
+				let input = document.querySelector('#secretwords');
+				if (!input) {
+					input = document.createElement('input');
+					input.id = "copy-input";
+					input.readOnly = "readOnly";        // 防止ios聚焦触发键盘事件
+					input.style.position = "absolute";
+					input.style.left = "-1000px";
+					input.style.zIndex = "-1000";
+					document.body.appendChild(input);
+				}
+
+				input.value = textString;
+				// ios必须先选中文字且不支持 input.select();
+				selectText(input, 0, textString.length);
+				if (document.execCommand('copy')) {
+					document.execCommand('copy');
+
+					alert('已复制，去发给好友吧！');
+				// jump to the app store
+				//  window.location.href = "https://apps.apple.com/cn/app/id1600443455";
+				}else {
+					console.log('不兼容');
+				}
+				input.blur();
+
+				// input自带的select()方法在苹果端无法进行选择，所以需要自己去写一个类似的方法
+				// 选择文本。createTextRange(setSelectionRange)是input方法
+				function selectText(textbox, startIndex, stopIndex) {
+					if (textbox.createTextRange) {//ie
+						const range = textbox.createTextRange();
+						range.collapse(true);
+						range.moveStart('character', startIndex);//起始光标
+						range.moveEnd('character', stopIndex - startIndex);//结束光标
+						range.select();//不兼容苹果
+					} else {//firefox/chrome
+						textbox.setSelectionRange(startIndex, stopIndex);
+						textbox.focus();
+					}
+				}
+			};
+
+			/////////////////// 输入6个数字的对话框 ///////////////////////////
+			// 如果取消输入房间号，那么就退回到显示第一个菜单UI
+			var active = 0;
+			let codeSix = '123000';
+			var inputBtn = document.querySelectorAll('.my_input');
+
+			$('#input6dsDialog').on('hidden.bs.modal', function(){
+				if(isCheckingPassword) {
+					// 之所以放在这里处理，原因是输入完6位数字房间号，去加入房间时 sendCmdJoinRoom 发送去后，会立刻获得服务器响应
+					// 然后用户端网络接收到服务器的playerinfo后，修改 isCheckingPassword 的数值为false，导致进入到下面else去显示主菜单了，而没有进入游戏
+					document.getElementById('gametipsinfo').innerHTML = 'Waiting for server to response...';
+					document.getElementById('BackToMain').style.display = 'none';
+					document.getElementById('tips_info').style.display = 'flex';
+
+					robotPass = codeSix;
+
+					if(client_socket.isConnected()) {
+						sendControlRequest();
+					}
+				} else {
+					document.getElementById('tips_main').style.display = 'flex';
+				}
+			});
+
+			$('#input6dsDialog').on('shown.bs.modal', function () {
+				$('#firstInput').focus();
+			});
+
+			function clear6DsInput(index) {
+				if(index == 0) {
+					$('#firstInput').val('');
+					$('#firstInput1').val('');
+					$('#firstInput2').val('');
+					$('#firstInput3').val('');
+					$('#firstInput4').val('');
+					$('#firstInput5').val('');
+				} else if(index == 1) {
+					$('#firstInput1').val('');
+					$('#firstInput2').val('');
+					$('#firstInput3').val('');
+					$('#firstInput4').val('');
+					$('#firstInput5').val('');
+				} else if(index == 2) {
+					$('#firstInput2').val('');
+					$('#firstInput3').val('');
+					$('#firstInput4').val('');
+					$('#firstInput5').val('');
+				} else if(index == 3) {
+					$('#firstInput3').val('');
+					$('#firstInput4').val('');
+					$('#firstInput5').val('');
+				} else if(index == 4) {
+					$('#firstInput4').val('');
+					$('#firstInput5').val('');
+				} else if(index == 5) {
+					$('#firstInput5').val('');
+				}
+			}
+
+			function init6DsInput() {
+				document.getElementById('firstInput').addEventListener('click', function () {
+					active = 0;
+					clear6DsInput(active);					
+				}, false);
+
+				document.getElementById('firstInput1').addEventListener('click', function () {
+					active = 1;
+					clear6DsInput(active);					
+				}, false);
+
+				document.getElementById('firstInput2').addEventListener('click', function () {
+					active = 2;
+					clear6DsInput(active);					
+				}, false);
+
+				document.getElementById('firstInput3').addEventListener('click', function () {
+					active = 3;
+					clear6DsInput(active);					
+				}, false);
+
+				document.getElementById('firstInput4').addEventListener('click', function () {
+					active = 4;
+					clear6DsInput(active);					
+				}, false);
+
+				document.getElementById('firstInput5').addEventListener('click', function () {
+					active = 5;
+					clear6DsInput(active);					
+				}, false);
+
+				for (var i = 0; i < inputBtn.length; i++) {
+					inputBtn[i].addEventListener('focus', function () {
+						this.addEventListener('keyup', listenKeyUp, false);
+					}, false);
+					inputBtn[i].addEventListener('blur', function () {
+						this.removeEventListener('keyup', listenKeyUp, false);
+					}, false);
+				}
+			}
+
+			/**
+			 * 监听键盘的敲击事件
+			 */
+			function listenKeyUp() {
+				if (/^[0-9]*$/g.test(this.value)) {
+					if (!isNaN(this.value) && this.value.length != 0) {
+						if (active < 5) {
+							active += 1;
+						}
+						inputBtn[active].focus();
+					} else if (this.value.length == 0) {
+						if (active > 0) {
+							active -= 1;
+							clear6DsInput(active);
+						}
+						inputBtn[active].focus();
+					}
+					if (active >= 5) {
+						//执行其他操作  获取6个输入的值
+						codeSix = $('#firstInput').val() + $('#firstInput1').val() + $('#firstInput2').val() + $('#firstInput3').val() + $('#firstInput4').val() + $('#firstInput5').val();
+						if (codeSix && codeSix.length == '6') {
+							// 这里设置一个标志，正在加入房间，目的是为了在本对话框消失后，不要回到 主菜单 界面！！！
+							isCheckingPassword = true;
+							// 所以记住：如果下一次还想再显示这个对话框，需要先设置为 false，再.modal()
+							$('#firstInput').val('');
+							$('#firstInput1').val('');
+							$('#firstInput2').val('');
+							$('#firstInput3').val('');
+							$('#firstInput4').val('');
+							$('#firstInput5').val('');
+
+							$('#input6dsDialog').modal('hide');
+						}
+					}
+				} else {
+					this.value = '';
+				}
+			}
+
+			init6DsInput();
+
+			function show6DigitalInput() {
+				active = 0;
+				isCheckingPassword = false;
+				clear6DsInput(active);
+				$('#input6dsDialog').modal();
+			};
+
+//////////////////////////////// END OF 6个数字输入对话框 //////////////////////////////////////////////////////
+			var websocket_server_url = "ws://" + window.location.host + ":8181";
+			var client_socket = new SocketClient(websocket_server_url, server_msg_callback);
+
+			// 下面是 机器人密码
+			let robotPass = "";
+
+			// 是否正在连接服务器
+			let isCheckingPassword = false;
+			// 游戏是否已经开始
+			let IsCmdStarted = false;
+			// 游戏初始化完成后，有些操作只需要执行一次（例如：关闭转圈，显示游戏主菜单），所以使用以下标志变量来控制只处理一次
+			let initOnce = true;
+
+			// create joy stick and buttons
+			// 摇杆控制方向：使用一个结构变量保存状态，在3D渲染里面去使用，而不是直接去触发动作
+			let curjoyStickStatus =
+				{
+					x: 0,
+					y: 0,
+					status: "UP"	// UP  DOWN   MOVE : only MOVE need process joy stick
+				};
+			var joyParam1 = { "title": "joybtn1", "autoReturnToCenter": true, "mode":"stick" };
+			var JoyBtn1 = new JoyStick('joyDiv1', joyParam1, function(stickData) {
+				curjoyStickStatus.status = stickData.status;
+				curjoyStickStatus.x = stickData.x;
+				curjoyStickStatus.y = stickData.y;
+			});
+
+			// 下面都是发射按钮：直接使用按钮事件函数，来直接触发动作
+			let curJoyBtnLStatus =
+				{
+					status: "UP"	// UP  DOWN   MOVE : only MOVE need process joy stick
+				};
+			var joyParam2 = { "title": "joybtnL", "autoReturnToCenter": true, "mode":"button", "internalDownColor":"#ff0000" };
+			var JoyBtnL = new JoyStick('joyDivL', joyParam2, function(stickData) {
+				curJoyBtnLStatus.status = stickData.status;
+
+				// send a navigation goal cmd:
+				var positionVec3 = new ROSLIB.Vector3(null);
+				var orientation = new ROSLIB.Quaternion({x:0, y:0, z:0.707580031534, w:0.706633213891});
+				
+				positionVec3.x = 7.78893089294;
+				positionVec3.y = 3.85310196877;
+				positionVec3.z = 0;
+
+				var pose = new ROSLIB.Pose({
+					position : positionVec3,
+					orientation : orientation
+				});
+				// send the goal
+				sendGoal(pose);
+			});
+
+			// 摇杆控制方向：使用一个结构变量保存状态，在3D渲染里面去使用，而不是直接去触发动作
+			let curJoyBtnRStatus =
+				{
+					status: "UP"	// UP  DOWN   MOVE : only MOVE need process joy stick
+				};
+			var joyParam3 = { "title": "joybtnR", "autoReturnToCenter": true, "mode":"button", "internalDownColor":"#ff0000" };
+			var JoyBtnR = new JoyStick('joyDivR', joyParam3, function(stickData) {
+				curJoyBtnRStatus.status = stickData.status;
+
+				// send a navigation goal cmd:
+				var positionVec3 = new ROSLIB.Vector3(null);
+				var orientation = new ROSLIB.Quaternion({x:0, y:0, z:0, w:1});
+				
+				positionVec3.x = 7.78893089294;
+				positionVec3.y = 3.85310196877;
+				positionVec3.z = 0;
+
+				var pose = new ROSLIB.Pose({
+					position : positionVec3,
+					orientation : orientation
+				});
+				// send the goal
+				sendGoal(pose);
+			});
+
+			// below is the game program: 
+			// 记录一下3D渲染的区域大小，有变化时，随时调整窗口尺寸
+			let LastWinWidth = 0;
+			let LastWinHeight = 0;
+
+			let robotCarModel;
+
+			// 每一个玩家的游戏控制信息
+			let joyStickStatus;
+			let JoyBtnLStatus;
+			let JoyBtnRStatus;
+
+			// ros3djs
+			let rosWebsocketClient, gridClient, tfClient, scanclient, robot_pose, actionClient, goal;
+
+			const CAMERA_ANGLE = 80;
+			const ROBOT_CAMERA_PLANE_W = 640;
+			const ROBOT_CAMERA_PLANE_H = 480;
+
+			let camera, scene, renderer, controls;
+			let space_background;
+			let robot_car_camera, robot_camera_geometry, robot_camera_mesh, texture_loader, robot_camera_material;
+
+			const stats = new Stats();
+			const clock = new THREE.Clock();
+			let container;
+
+			// 如果想要播放声音，就必须先显示一个页面，让用户点击按钮，触发这个StartGame 才能获得声音的权限
+			StartRobotWeb();
+
+			window.addEventListener( 'resize', onWindowResize );
+
+			function onWindowResize() {
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+			}
+
+			function CheckWindowResize() {
+				if( LastWinWidth != window.innerWidth || LastWinHeight != window.innerHeight) {
+					LastWinWidth = window.innerWidth;
+					LastWinHeight = window.innerHeight;
+					onWindowResize();
+				}
+			}
+
+			function updateAll( deltaTime ) {
+			}
+
+			function IsModelsLoadCompleted() {
+				if(! robotCarModel.isLoadCompleted())
+					return false;
+				if(! space_background.isLoadCompleted())
+					return false;
+				return true;
+			}
+
+			// 获取当前 player 的 摇杆和按键
+			function getJoyPadStatus() {
+				// curjoyStickStatus, curJoyBtnRStatus, curJoyBtnLStatus
+				// create a json string : '{"cmd":"joystick", "id":"0", "password":"123456", "sticks":{"s":"UP","x":1,"y":2}, "btnL":"UP", "btnR":"UP","rotate":{"y":0,"x":1}}';
+				var msg = '{"cmd":"joystick","password":"' + robotPass;
+				msg += '","sticks":{"s":"';
+				msg += curjoyStickStatus.status + '","x":';
+				msg += curjoyStickStatus.x.toString() + ',"y":';
+				msg += curjoyStickStatus.y.toString() + '}, "btnL":"';
+				msg += curJoyBtnLStatus.status + '", "btnR":"';
+				msg += curJoyBtnRStatus.status + '","camera_rotate":{"x":';
+				msg += camera.rotation.x.toFixed(2).toString() + ',"y":';
+				msg += camera.rotation.y.toFixed(2).toString() + ',"z":';
+				msg += camera.rotation.z.toFixed(2).toString() + '},"car_rotate":{"x":';
+				msg += robotCarModel.robotcarObject().rotation.x.toFixed(2).toString() + ',"y":';
+				msg += robotCarModel.robotcarObject().rotation.y.toFixed(2).toString() + ',"z":';
+				msg += robotCarModel.robotcarObject().rotation.z.toFixed(2).toString() + '}}';
+
+				return msg;
+			}
+
+			function sendJoyPadStatus() {
+				var msg = getJoyPadStatus();
+				// if joystick button is down or move, then will send car cmd to websocket server!
+				if(curjoyStickStatus.status != "UP") {
+					// send msg to server
+					client_socket.sendMsg(msg);
+				}
+			}
+
+			function sendControlRequest() {
+				var msg = '{"cmd":"acquire", "password":"' + robotPass + '"}';
+				client_socket.sendMsg(msg);
+			}
+
+			function server_msg_callback(msg) {
+				console.log('msg from server: ' + msg);
+
+				const jsonMsg = JSON.parse(msg);
+				if(jsonMsg.cmd == "connected") {
+					if(isCheckingPassword) {
+						sendControlRequest();
+					}
+				} else if(jsonMsg.cmd == "accepted") {
+					document.getElementById('tips_info').style.display = 'none';
+					
+					// 设置当前玩家在线
+					robotCarModel.setVisible(true);
+
+					/* // below is used for test
+					robotCarModel.setSteeringAngle(Math.PI/6);
+					camera.position.set( 0, 0, 3 );
+					controls.target.set( 0, 0, 0 );
+					controls.enabled = true;
+					controls.saveState();
+					controls.update();
+					*/ 
+
+					IsCmdStarted = true;
+				}
+			}
+
+			function NullClickProcess(event)
+			{
+				event.preventDefault();	//阻止默认行为（滚动条滚动）
+			}
+
+			document.getElementById('BackToMain').addEventListener("touchstart", NullClickProcess, false);
+        	document.getElementById('BackToMain').addEventListener("touchmove", NullClickProcess, false);
+			document.getElementById('BackToMain').addEventListener("touchend", BackToMainBtn, false);
+			function BackToMainBtn(event) {
+				document.getElementById('tips_info').style.display = 'none';
+				document.getElementById('BackToMain').style.display = 'none';
+				document.getElementById('tips_main').style.display = 'flex';
+			}
+			document.getElementById('BackToMain').addEventListener('click', () => {
+				document.getElementById('tips_info').style.display = 'none';
+				document.getElementById('BackToMain').style.display = 'none';
+				document.getElementById('tips_main').style.display = 'flex';
+			});
+
+			document.getElementById('JoinRoom').addEventListener("touchstart", NullClickProcess, false);
+        	document.getElementById('JoinRoom').addEventListener("touchmove", NullClickProcess, false);
+			document.getElementById('JoinRoom').addEventListener("touchend", JoinRoomBtn, false);
+			function JoinRoomBtn(event) {
+				document.getElementById('tips_main').style.display = 'none';
+				show6DigitalInput();
+			}
+			document.getElementById('JoinRoom').addEventListener('click', () => {
+				document.getElementById('tips_main').style.display = 'none';
+				show6DigitalInput();
+			});
+			
+			function animate() {
+				// 检查当前窗口尺寸，有变化随时调整
+				CheckWindowResize();
+
+				let UpdateDeltaTime = clock.getDelta();
+				// 必须确保所有模型加载完成，才能进行下面的操作，否则很多变量都没有赋值，就导致没有确定变量类型，js代码会大量报错
+				if(IsModelsLoadCompleted()) {
+
+					// 下面是针对游戏初始化完成后，执行一次：只需要执行一次的操作
+					if(initOnce) {
+						initOnce = false;
+						// 加载全部完成后，设置这个加载转圈的元素 隐藏
+						document.getElementById( 'initloader' ).style.display = 'none';
+						document.getElementById('tips_main').style.display = 'flex';
+					}
+
+					if(IsCmdStarted)
+						sendJoyPadStatus();
+
+					updateAll(UpdateDeltaTime);
+				}
+				
+				robot_camera_material.map.needsUpdate = true;
+
+				renderer.render( scene, camera );
+				//stats.update();
+				requestAnimationFrame( animate );
+			}
+
+			function sendGoal(pose) {
+				// create a goal
+				goal = new ROSLIB.Goal({
+				actionClient : actionClient,
+				goalMessage : {
+					target_pose : {
+					header : {
+						frame_id : 'map'
+					},
+					pose : pose
+					}
+				}
+				});
+				goal.send();
+			};
+
+			function cancelGoal() {
+				// cancel the current goal
+				goal.cancel();
+			}
+			
+			// 下面这个函数是游戏启动初始化的，由于IOS要求必须通过按钮触发，才允许播放声音，所以这个函数放到按钮触发里面去
+			function StartRobotWeb() {
+				// 显示转圈等待
+				// document.getElementById( 'initloader' ).style.display = 'flex';
+				
+				// Connect to ROS.
+				rosWebsocketClient = new ROSLIB.Ros({
+					url : 'ws://192.168.137.204:9090'
+				});
+
+				camera = new THREE.PerspectiveCamera(CAMERA_ANGLE, window.innerWidth / window.innerHeight, 0.01, 2100);
+				scene = new THREE.Scene();
+				renderer = new THREE.WebGLRenderer();
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.shadowMap.enabled = true;
+				renderer.debug.checkShaderErrors = false;
+
+				container = document.getElementById( 'container' );
+				//	Event listeners in mousekeyboard.js
+				container.addEventListener( 'touchstart', touchStart, false );
+				container.addEventListener( 'touchend', touchEnd, false );
+				container.addEventListener( 'touchmove', touchMove, false );
+				
+				container.appendChild( renderer.domElement );
+
+				// 当时发现摄像头距离中心点很远之后，画面中间出了黑色圆块，怎么搞都无法显示出这个区域的画面，当时还以为是阴影导致的问题
+				// 结果是：当时设置的半径 1000，而camera的最远可视距离设置的 1100，然后camera 离开中心点超过100后，就出现了上面的问题
+				// 因为这个时候有一部分的球形背景已经超过camera的可视距离了，才导致变成黑色，根本不是阴影问题！！！
+				controls = new THREE.OrbitControls( camera, renderer.domElement );
+				controls.minDistance = 1;
+				controls.maxDistance = 1000;
+				controls.target.set( 0, 0, 0 );
+				controls.saveState();
+				controls.enabled = true;
+
+				camera.position.set( 0, 10, 10 );
+        		controls.update();
+				
+				window.addEventListener( 'resize', onWindowResize );
+
+				space_background = new SpaceBackGround(scene, './images/space2.jpg');
+
+				var axesHelper = new THREE.AxesHelper( 150 );
+				scene.add(axesHelper);
+
+				robot_camera_geometry = new THREE.PlaneGeometry( ROBOT_CAMERA_PLANE_W, ROBOT_CAMERA_PLANE_H );
+				//异步加载高清纹理图
+				robot_car_camera = document.getElementById( 'robot_car_camera_canvas' );
+				texture_loader = new THREE.CanvasTexture( robot_car_camera );
+				robot_camera_material = new THREE.MeshBasicMaterial({ map: texture_loader });
+				robot_camera_mesh = new THREE.Mesh(robot_camera_geometry, robot_camera_material);
+				robot_camera_mesh.receiveShadow = false;
+				scene.add(robot_camera_mesh);
+
+				// 下面启动模型加载，包括人物3D里面加载声音
+				// 每一个背景地图都必须预先有定义好的 人物初始位置坐标，用来安放人物，然后可以随机选择其中一个坐标，来创建人物,默认坐标全是0
+				joyStickStatus = {
+					x: 0,
+					y: 0,
+					status: "UP"	// UP  DOWN   MOVE : only MOVE need process joy stick
+				};
+
+				JoyBtnLStatus =
+				{
+					status: "UP"	// UP  DOWN   MOVE : only MOVE need process joy stick
+				};
+
+				JoyBtnRStatus =
+				{
+					status: "UP"	// UP  DOWN   MOVE : only MOVE need process joy stick
+				};
+
+				// Setup the map client. map is the base frame, so do not need tf client
+				gridClient = new OccupancyGridClient({
+					ros : rosWebsocketClient,
+					rootObject : scene
+				});
+
+				// Scale the canvas to fit to the map
+				gridClient.on('change', function() {
+					// the map's real width = gridClient.currentGrid.mesh.geometry.parameters.width * gridClient.currentGrid.mesh.scale.x
+					map_width = gridClient.currentGrid.mesh.geometry.parameters.width * gridClient.currentGrid.mesh.scale.x;
+
+					plane_scale = map_width/ROBOT_CAMERA_PLANE_W;
+					robot_camera_mesh.scale.x = robot_camera_mesh.scale.y = plane_scale;
+					robot_camera_mesh.position.x = (ROBOT_CAMERA_PLANE_W*plane_scale)/2;
+					robot_camera_mesh.position.y -= (ROBOT_CAMERA_PLANE_H*plane_scale)/2;
+
+					// because map's center is moved to a position, which let map's left-bottom corner point is on the (x=0, y=0, z=0)
+					// so map's position.x is the half value of the map's real width, we can just use it to calculate the camera's z length
+					// to ensure camera can include whole map's width.
+					// var zLength = ((map_width/2)/Math.sin(((CAMERA_ANGLE/2)/180)*Math.PI)) * Math.cos(((CAMERA_ANGLE/2)/180)*Math.PI);
+					camera.position.set( gridClient.currentGrid.mesh.position.x, 0, gridClient.currentGrid.mesh.position.z + map_width*1.5);
+					controls.target.set( gridClient.currentGrid.mesh.position.x, 0, gridClient.currentGrid.mesh.position.z );
+					controls.enabled = true;
+					controls.saveState();
+					controls.update();
+				});
+
+				// laser scan frame need setup tf client
+				tfClient = new ROSLIB.TFClient({
+					ros : rosWebsocketClient,
+					angularThres : 0.01,
+					transThres : 0.01,
+					rate : 10.0,
+					fixedFrame : 'map'//laser_base_link
+				});
+
+				scanclient = new LaserScan({
+					ros: rosWebsocketClient,
+					topic: '/scan',
+					tfClient: tfClient,
+					rootObject: scene,
+					material: { size: 0.1, color: 0xff00ff }
+				});
+				
+				// robot car and pose update:
+				robotCarModel = new RobotCar3D({ "robot_type": "ackermann_car"}, scene, camera);
+				robotCarModel.setVisible(false);
+
+				robot_pose = new ROSLIB.Pose();
+
+				function updateRobotPose(pose) {
+					robotCarModel.robotcarObject().position.set( pose.position.x, pose.position.y, pose.position.z );
+					robotCarModel.robotcarObject().quaternion.set(pose.orientation.x, pose.orientation.y,
+						pose.orientation.z, pose.orientation.w);
+					robotCarModel.robotcarObject().updateMatrixWorld(true);
+				};
+				function robotPoseUpdate(msg) {
+					// apply the transform
+					var tf = new ROSLIB.Transform(msg);
+					var poseTransformed = new ROSLIB.Pose(robot_pose);
+					poseTransformed.applyTransform(tf);
+
+					// update the world
+					updateRobotPose(poseTransformed);
+				};
+
+				// listen for robot pose TF updates
+				tfClient.subscribe("base_footprint", robotPoseUpdate);
+				
+				// navigation set goal command:
+				actionClient = new ROSLIB.ActionClient({
+					ros : rosWebsocketClient,
+					actionName : "move_base_msgs/MoveBaseAction",
+					serverName : "/move_base"
+				});
+
+				// Monitoring /move_base/result
+				var move_baseListener = new ROSLIB.Topic({
+					ros : rosWebsocketClient,
+					name : '/move_base/result',
+					messageType : 'move_base_msgs/MoveBaseActionResult'
+				});
+				
+				move_baseListener.subscribe(function(actionResult) {
+					console.log('Received message on ' + move_baseListener.name + ' status: ' + actionResult.status.status);
+					// actionResult.status.status == 2 (goal cancelled)
+					// actionResult.status.status == 3 (goal reached)
+				//    move_baseListener.unsubscribe();
+				});
+
+				// navigation path:
+				var robotGlobalPath = new NavPath({
+					ros: rosWebsocketClient,
+					tfClient: tfClient,
+					topic: '/move_base/GlobalPlanner/plan',
+					rootObject: scene,
+					color: 0x00ff00
+				});
+
+				var robotLocalPath = new NavPath({
+					ros: rosWebsocketClient,
+					tfClient: tfClient,
+					topic: '/move_base/TebLocalPlannerROS/local_plan',
+					rootObject: scene,
+					color: 0xff0000,
+					linetype: 'arrow'
+				});
+
+				// show robot's camera image
+				var listener = new ROSLIB.Topic({
+					ros : rosWebsocketClient,
+					name : '/image_raw/compressed',
+					messageType : 'sensor_msgs/CompressedImage'
+				});
+				listener.subscribe(function(message) {
+					function topicRobotCameraUpdate(img_src) {
+						let ctx_camera = document.getElementById('robot_car_camera_canvas').getContext('2d');
+						var img = document.getElementById('image_robot_camera');
+						ctx_camera.drawImage(img,0,0, img.width, img.height,0,0,640,480);
+						document.getElementById('image_robot_camera').src = img_src;
+					}
+					// console.log('Received message on ' + listener.name);
+					topicRobotCameraUpdate("data:image/jpeg;base64," + message.data);
+				});
+
+				animate();
+			}
+		</script>
+	</body>
+</html>
