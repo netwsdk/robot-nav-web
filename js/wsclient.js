@@ -40,7 +40,7 @@ var SocketClient = (function(ws_url, msg_callback)
 
     function callback_message(msg) {
         var received_msg = msg.data;
-        console.log(received_msg);
+        // console.log(received_msg);
         msg_callback(received_msg);
     }
 

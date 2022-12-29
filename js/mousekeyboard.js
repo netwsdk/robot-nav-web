@@ -8,35 +8,10 @@ var TOUCHMODES = {
 };
 var touchMode = TOUCHMODES.NONE;
 
-function nullCloseProcess() {
-	console.log("Please replace nullCloseProcess if your scene need some close process!");
+function nullTouchEvent(from_x, from_y, to_x, to_y) {
 }
-
-var closeCallbackFunc = nullCloseProcess;
-// default function for close button at the top-right corner.
-$('.close').click(function(){
-	closeCallbackFunc();
-});
-
-// NullTouchProcess is used in some scene_xxxx module, used to process some button's touch and click
-function NullTouchProcess(event)
-{
-	if (event.preventDefault)
-		event.preventDefault();	//阻止默认行为（滚动条滚动）
-}
-
-function nullClickEvent(x, y) {
-	console.log('detect a click, but there is no callback function setting!');
-}
-var clickCallbackFunc = nullClickEvent;
-
-function nullXscrollEvent(start_x, cur_x) {
-}
-var XscrollCallbackFunc = nullXscrollEvent;
-
-function nullXscrollEndEvent(x, y) {
-}
-var XscrollEndCallbackFunc = nullXscrollEndEvent;
+var touchMoveCallbackFunc = nullTouchEvent;
+var touchEndCallbackFunc = nullTouchEvent;
 
 function determineTouchMode( event ){
 	const touches = event.changedTouches;
@@ -85,12 +60,7 @@ function touchEnd( event ){
 	// event.preventDefault();
 
 	if ( touchMode === TOUCHMODES.SINGLE ) {
-		if( Math.abs(pressX - mouseX) > 3 || Math.abs(pressY - mouseY) > 3 ) {
-			XscrollEndCallbackFunc(mouseX, mouseY);
-			return;
-		}
-	
-		clickCallbackFunc(pressX, pressY);
+		touchEndCallbackFunc(pressX, pressY, mouseX, mouseY);
 	}
 }
 
@@ -107,6 +77,6 @@ function touchMove( event ){
 		mouseX = touch.pageX;
 		mouseY = touch.pageY;
 
-		XscrollCallbackFunc(pressX, mouseX);
+		touchMoveCallbackFunc(pressX, pressY, mouseX, mouseY);
 	}
 }

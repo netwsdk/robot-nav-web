@@ -510,4 +510,14 @@ var JoyStick = (function(container, parameters, callback)
     {
         return getCardinalDirection();
     };
+
+    // set the color of button
+    this.setColor = function(fillColor, strokeColor, downColor)
+    {
+        internalFillColor = fillColor;
+        internalStrokeColor = strokeColor;
+        internalDownColor = downColor;
+
+        drawInternal();
+    };
 });
